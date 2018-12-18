@@ -1,6 +1,3 @@
-import sun.plugin2.message.JavaObjectOpMessage;
-import sun.tools.jps.Jps;
-
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.*;
@@ -21,14 +18,20 @@ public class Main extends JFrame {
     public static JTextField CapacityInput=new JTextField();
     public static JLabel [][]FFLable=new JLabel[10][3];
     public static JTextField[]FFText=new JTextField[100];
+
     public static JLabel [][]NFLabel=new JLabel[10][3];
     public static JTextField[]NFText=new JTextField[100];
+
     public static JLabel [][]BFLabel=new JLabel[10][3];
     public static JTextField[]BFText=new JTextField[100];
+
     public static JLabel [][]WFLabel=new JLabel[10][3];
     public static JTextField[]WFText=new JTextField[100];
-    public static PCB apply=new PCB(-1,-1,-1);//初始化
-    public static int count=6;
+//    public static PCB apply=new PCB(-1,-1,-1);//初始化
+    public static int countFFnum=6;
+    public static int countNFnum=6;
+    public static int countBFnum=6;
+    public static int countWFnum=6;
     public static int NFcount=0;
     public static int reveive=-1;
     public static void main(String[] args){
@@ -47,13 +50,6 @@ public class Main extends JFrame {
     public static void placeComponent(MyJPanel panel){
         panel.setLayout(null);
         panel.setBackground(Color.white);
-//        JLabel BlockId=new JLabel("分区号：");
-//        BlockId.setBounds(100,10,80,30);
-//        panel.add(BlockId);
-//        JTextField BlockInput=new JTextField();
-//        BlockInput.setBounds(180,10,80,30);
-//        panel.add(BlockInput);
-        System.out.println("!!!!!!!!!!!!!!!!");
         JLabel Capacity=new JLabel("分区大小：");
         Capacity.setBounds(300,10,80,30);
         panel.add(Capacity);
@@ -301,45 +297,67 @@ public class Main extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 //分配
                 if(e.getSource()==confirm){
-                    apply.Id=-1;
-                    apply.size=0;
-                    apply.address=-1;
+                    PCB apply=new PCB(-1,0,-1);
+//                    apply.Id=-1;
+//                    apply.size=0;
+//                    apply.address=-1;
                     String SizeValue=CapacityInput.getText();
                     if(isNumeric(SizeValue)==true){
                         apply.size=Integer.parseInt(SizeValue);
-                        apply.Id=count+1;
-                        count++;
+//                        apply.Id=count+1;
+//                        count++;
                     }
                     else{
                         JOptionPane.showMessageDialog(null,"大小输入不合法！");
                     }
-                    int FFid=FirstFit();
+                    int FFid=FirstFit(apply);
                     if(FFid>=0){
-                        ModifyFF(FFid);
+                        apply.Id=countFFnum+1;
+                        countFFnum++;
+                        ModifyFF(FFid,apply);
                     }
                     else {
                         JOptionPane.showMessageDialog(null,"首次适应算法分配不成功");
+                        return;
                     }
-                    int NFid=NextFit();
+
+                    int NFid=NextFit(apply);
                     if(NFid>=0){
-                        ModifyNF(NFid);
+                        apply.Id=countNFnum+1;
+                        countNFnum++;
+                        ModifyNF(NFid,apply);
                     }
                     else{
                         JOptionPane.showMessageDialog(null,"循环首次适应算法分配不成功");
+                        return;
                     }
-                    int BFid=BestFit();
+
+                    int BFid=BestFit(apply);
                     if(BFid>=0){
-                        ModifyBF();
+                        apply.Id=countBFnum+1;
+                        countBFnum++;
+                        ModifyBF(apply);
+//                        for(int j=0;j<apply.Id;j++){
+//                            System.out.println(BFText[j].getText());
+//                        }
                     }
                     else {
                         JOptionPane.showMessageDialog(null,"最佳适应算法分配不成功");
+                        return;
                     }
-                    int WFid=WorstFit();
+
+                    int WFid=WorstFit(apply);
                     if(WFid>=0){
-                        ModifyWF();
+                        apply.Id=countWFnum+1;
+                        countWFnum++;
+                        ModifyWF(apply);
+//                        for(int j=0;j<apply.Id;j++){
+//                            System.out.println(WFText[j].getText());
+//                        }
                     }
                     else {
                         JOptionPane.showMessageDialog(null,"最坏适应算法分配不成功");
+                        return;
                     }
                 }
             }
@@ -352,13 +370,47 @@ public class Main extends JFrame {
                     String revValue=recycleId.getText();
                     if(isNumeric(revValue)==true){
                         reveive=Integer.parseInt(revValue);
-                        int recycleID=ReceiveInFF(reveive);
-                        if(recycleID<0){
-                            JOptionPane.showMessageDialog(null,"分区不存在");
+                        //FF算法
+                        int k;
+                        if((k=IsExist(reveive,blocks1))>=0){
+                            panel.remove(FFText[k]);
+                            panel.repaint();
+                            panel.revalidate();
+                            FFrecycle(k,blocks1,FFLable);
                         }
                         else{
-                            RecycleFFDisplay();
-                            removeFFTextDisplay(recycleID);
+                            JOptionPane.showMessageDialog(null,"FF算法中该分区不存在");
+                        }
+                        //NF算法
+                        if((k=IsExist(reveive,blocks2))>=0){
+                            panel.remove(NFText[k]);
+                            panel.repaint();
+                            panel.revalidate();
+                            FFrecycle(k,blocks2,NFLabel);
+                        }
+                        else{
+                            JOptionPane.showMessageDialog(null,"NF算法中该分区不存在");
+                        }
+                        //BF算法
+                        if((k=IsExist(reveive,blocks3))>=0){
+                            System.out.println("出鬼了？"+BFText[k].getX());
+                            panel.remove(BFText[k]);
+                            panel.repaint();
+                            panel.revalidate();
+                            BFrecycle(k,blocks3,BFLabel);
+                        }
+                        else {
+                            JOptionPane.showMessageDialog(null,"BF算法中该分区不存在");
+                        }
+                        //WF算法
+                        if((k=IsExist(reveive,blocks4))>=0){
+                            panel.remove(WFText[k]);
+                            panel.repaint();
+                            panel.revalidate();
+                            WFrecycle(k,blocks4,WFLabel);
+                        }
+                        else{
+                            JOptionPane.showMessageDialog(null,"WF算法中该分区不存在");
                         }
 
                     }
@@ -372,7 +424,7 @@ public class Main extends JFrame {
     }
 
 
-    public static int FirstFit(){
+    public static int FirstFit(PCB apply){
         for(int i=0;i<blocks1.FreeProcess.size();i++){
             if(apply.size<=blocks1.FreeProcess.get(i).size){
                 apply.address=blocks1.FreeProcess.get(i).address;
@@ -382,6 +434,10 @@ public class Main extends JFrame {
                 blocks1.FreeProcess.set(i,newFreeBlock);
 //                System.out.println(blocks1.FreeProcess.get(i).address+"---");
                 blocks1.process.add(apply);
+//                System.out.println(apply.Id);
+//                for(int j=0;j<blocks1.process.size();j++){
+//                    System.out.println(blocks1.process.get(j).Id+" "+blocks1.process.get(j).address);
+//                }
                 Collections.sort(blocks1.FreeProcess,new CompareAddress());//放到正确位置
                 return i;
             }
@@ -389,7 +445,7 @@ public class Main extends JFrame {
         return -1;
     }
 
-    public static void ModifyFF(int id){
+    public static void ModifyFF(int id,PCB apply){
         FFLable[id][1].setText(blocks1.FreeProcess.get(id).size+"K");
         FFLable[id][2].setText(blocks1.FreeProcess.get(id).address+"K");
         JTextField container=new JTextField(blocks1.process.get(blocks1.process.size()-1).size+"K, "+apply.Id);
@@ -399,24 +455,23 @@ public class Main extends JFrame {
         FFText[blocks1.process.size()-1]=container;
     }
 
-    public static int NextFit(){
-//        NFcount=(NFcount+1)%blocks2.FreeProcess.size();
-//        System.out.println("NFcount："+NFcount);
-        for(int i=NFcount;i<blocks2.FreeProcess.size();i++){
+    public static int NextFit(PCB apply){
+        int c=0;
+        for(int i=NFcount;c<blocks2.FreeProcess.size();i=(i+1)%blocks2.FreeProcess.size()){
             if(apply.size<=blocks2.FreeProcess.get(i).size){
                 apply.address=blocks2.FreeProcess.get(i).address;
                 PCB tmp=new PCB(apply.Id,blocks2.FreeProcess.get(i).size-apply.size,blocks2.FreeProcess.get(i).address+apply.size);
                 blocks2.FreeProcess.set(i,tmp);
                 blocks2.process.add(apply);
                 Collections.sort(blocks2.FreeProcess,new CompareAddress());//放到正确位置
-                NFcount=(i+1)%5;
+                NFcount=(i+1)%blocks2.FreeProcess.size();
                 return i;
             }
         }
         return -1;
     }
 
-    public static void ModifyNF(int id){
+    public static void ModifyNF(int id,PCB apply){
         NFLabel[id][1].setText(blocks2.FreeProcess.get(id).size+"K");
         NFLabel[id][2].setText(blocks2.FreeProcess.get(id).address+"K");
         JTextField container=new JTextField(blocks2.process.get(blocks2.process.size()-1).size+"K, "+apply.Id);
@@ -426,15 +481,13 @@ public class Main extends JFrame {
         NFText[blocks2.process.size()-1]=container;
     }
 
-    public static int BestFit(){
+    public static int BestFit(PCB apply){
         for(int i=0;i<blocks3.FreeProcess.size();i++){
             if(apply.size<=blocks3.FreeProcess.get(i).size){
-//                apply.address=blocks3.FreeProcess.get(i).address;
-//                System.out.println(apply.address+"??");
                 //修改原来空闲块的大小
                 PCB newFreeBlock=new PCB(blocks3.FreeProcess.get(i).Id,blocks3.FreeProcess.get(i).size-apply.size,blocks3.FreeProcess.get(i).address+apply.size);
+                apply.address=blocks3.FreeProcess.get(i).address;
                 blocks3.FreeProcess.set(i,newFreeBlock);
-//                System.out.println(blocks3.FreeProcess.get(i).address+"---");
                 blocks3.process.add(apply);
                 Collections.sort(blocks3.FreeProcess,new CompareSize());//放到正确位置
                 return i;
@@ -443,20 +496,22 @@ public class Main extends JFrame {
         return -1;
     }
 
-    public static void ModifyBF(){
+    public static void ModifyBF(PCB apply){
+//        System.out.println("IN!!!!!!!!!!!!!!!!!!!!!!!");
         for(int i=0;i<blocks3.FreeProcess.size();i++){
             BFLabel[i][0].setText(blocks3.FreeProcess.get(i).Id+"");
-            BFLabel[i][1].setText(blocks3.FreeProcess.get(i).size+"");
-            BFLabel[i][2].setText(blocks3.FreeProcess.get(i).address+"");
+            BFLabel[i][1].setText(blocks3.FreeProcess.get(i).size+"K");
+            BFLabel[i][2].setText(blocks3.FreeProcess.get(i).address+"K");
         }
-        JTextField container=new JTextField(blocks3.process.get(blocks3.process.size()-1).size+", "+apply.Id);
+        JTextField container=new JTextField(blocks3.process.get(blocks3.process.size()-1).size+"K, "+apply.Id);
         container.setBounds(885,blocks3.process.get(blocks3.process.size()-1).address,70,blocks3.process.get(blocks3.process.size()-1).size);
         container.setBackground(Color.pink);
         panel.add(container);
         BFText[blocks3.process.size()-1]=container;
     }
 
-    public static int WorstFit(){
+    public static int WorstFit(PCB apply){
+        Collections.sort(blocks4.FreeProcess,new CompareSizeDec());//放到正确位置
         for(int i=0;i<blocks4.FreeProcess.size();i++){
             if(apply.size<=blocks4.FreeProcess.get(i).size){
                 apply.address=blocks4.FreeProcess.get(i).address;
@@ -466,95 +521,101 @@ public class Main extends JFrame {
                 blocks4.FreeProcess.set(i,newFreeBlock);
 //                System.out.println(blocks4.FreeProcess.get(i).address+"---");
                 blocks4.process.add(apply);
-                Collections.sort(blocks4.FreeProcess,new CompareSizeDec());//放到正确位置
+//                Collections.sort(blocks4.FreeProcess,new CompareSizeDec());//放到正确位置
                 return i;
             }
         }
         return -1;
     }
 
-    public static void ModifyWF(){
+    public static void ModifyWF(PCB apply){
         for(int i=0;i<blocks4.FreeProcess.size();i++){
             WFLabel[i][0].setText(blocks4.FreeProcess.get(i).Id+"");
-            WFLabel[i][1].setText(blocks4.FreeProcess.get(i).size+"");
-            WFLabel[i][2].setText(blocks4.FreeProcess.get(i).address+"");
+            WFLabel[i][1].setText(blocks4.FreeProcess.get(i).size+"K");
+            WFLabel[i][2].setText(blocks4.FreeProcess.get(i).address+"K");
         }
-        JTextField container=new JTextField(blocks4.process.get(blocks4.process.size()-1).size+", "+apply.Id);
+        JTextField container=new JTextField(blocks4.process.get(blocks4.process.size()-1).size+"K, "+apply.Id);
         container.setBounds(1205,blocks4.process.get(blocks4.process.size()-1).address,70,blocks4.process.get(blocks4.process.size()-1).size);
         container.setBackground(Color.pink);
         panel.add(container);
-        BFText[blocks4.process.size()-1]=container;
+        WFText[blocks4.process.size()-1]=container;//!!!!!!!!!!!
     }
 
-    public static int ReceiveInFF(int id){
-        for(int i=0;i<blocks1.process.size();i++){
-            if(blocks1.process.get(i).Id==id){
-                blocks1.FreeProcess.add(blocks1.process.get(i));//空闲块数组加上该块
-                MergeInFF();//合并空闲块
-                blocks1.process.remove(i);//该块成为了空闲块
-                removeFFTextDisplay(i);
+    //查找该分区是否存在
+    public static int IsExist(int num,Assign blocks){
+        for(int i=0;i<blocks.process.size();i++){
+            if(num==blocks.process.get(i).Id){
+                System.out.println("位置："+i);
                 return i;
             }
         }
         return -1;
     }
+    //回收操作操作
+    public static void FFrecycle(int num,Assign blocks,JLabel [][] label){
+        System.out.println("回收分区号："+num);
+        blocks.FreeProcess.add(blocks.process.get(num));
+        blocks.process.set(num,new PCB(-1,-1,-1));
+        MergeInFF(blocks);//合并空闲块
+        RecycleFFDisplay(blocks,label);
+    }
 
-    public static void MergeInFF(){
-        Collections.sort(blocks1.FreeProcess,new CompareAddress());//按照地址排序
-        for(int i=0;i<blocks1.FreeProcess.size()-1;i++){
-            if(blocks1.FreeProcess.get(i).address+blocks1.FreeProcess.get(i).size>=blocks1.FreeProcess.get(i+1).address){
-                PCB temp=new PCB(blocks1.FreeProcess.get(i).Id,blocks1.FreeProcess.get(i).size+blocks1.FreeProcess.get(i+1).size,blocks1.FreeProcess.get(i).address);
-                blocks1.FreeProcess.remove(i+1);
-                blocks1.FreeProcess.set(i,temp);
+    public static void MergeInFF(Assign blocks){
+        Collections.sort(blocks.FreeProcess,new CompareAddress());//按照地址排序
+        for(int i=0;i<blocks.FreeProcess.size()-1;i++){
+            if(blocks.FreeProcess.get(i).address+blocks.FreeProcess.get(i).size>=blocks.FreeProcess.get(i+1).address){
+                PCB temp=new PCB(blocks.FreeProcess.get(i).Id,blocks.FreeProcess.get(i).size+blocks.FreeProcess.get(i+1).size,blocks.FreeProcess.get(i).address);
+                blocks.FreeProcess.remove(i+1);
+                blocks.FreeProcess.set(i,temp);
                 i--;//仍然从当前块比较
             }
         }
     }
 
-    public static void RecycleFFDisplay() {
+    public static void BFrecycle(int num,Assign blocks,JLabel [][] label){
+        System.out.println("回收分区号："+num);
+        blocks.FreeProcess.add(blocks.process.get(num));
+        blocks.process.set(num,new PCB(-1,-1,-1));
+        MergeInFF(blocks);//合并空闲块
+        Collections.sort(blocks.FreeProcess,new CompareSize());//重新排序
+        RecycleFFDisplay(blocks,label);
+    }
+
+    public static void WFrecycle(int num,Assign blocks,JLabel [][] label){
+        System.out.println("回收分区号："+num);
+        blocks.FreeProcess.add(blocks.process.get(num));
+        blocks.process.set(num,new PCB(-1,-1,-1));
+        MergeInFF(blocks);//合并空闲块
+        Collections.sort(blocks.FreeProcess,new CompareSizeDec());//重新排序
+        RecycleFFDisplay(blocks,label);
+    }
+//
+    public static void RecycleFFDisplay(Assign blocks,JLabel [][]Label) {
         int i;
-        for (i=0; i < blocks1.FreeProcess.size(); i++) {
-            FFLable[i][0].setText(blocks1.FreeProcess.get(i).Id + "");
-            FFLable[i][1].setText(blocks1.FreeProcess.get(i).size + "");
-            FFLable[i][2].setText(blocks1.FreeProcess.get(i).address + "");
+        for (i=0; i < blocks.FreeProcess.size(); i++) {
+            try {
+                Label[i][0].setText(blocks.FreeProcess.get(i).Id + "");
+                Label[i][1].setText(blocks.FreeProcess.get(i).size + "K");
+                Label[i][2].setText(blocks.FreeProcess.get(i).address + "K");
+            }
+            catch (NullPointerException e){
+                System.out.println("");
+            }
+
         }
-        for(int k=i;k<FFLable.length;k++){
-            if(FFLable[k][0]!=null){
-                FFLable[k][0].setText("");
+        for(int k=i;k<Label.length;k++){
+            if(Label[k][0]!=null){
+                Label[k][0].setText("");
             }
-            if(FFLable[k][1]!=null){
-                FFLable[k][1].setText("");
+            if(Label[k][1]!=null){
+                Label[k][1].setText("");
             }
-            if(FFLable[k][2]!=null){
-                FFLable[k][2].setText("");
+            if(Label[k][2]!=null){
+                Label[k][2].setText("");
             }
 
         }
     }
 
-    public static void removeFFTextDisplay(int id){
-//        panel.repaint();
-        System.out.println("?");
-//        panel.remove(FFText[id]);//移除相应分配块
-//        panel.revalidate();
-//        panel.repaint();
-            FFText[id].setText("");
-        System.out.println(FFText[id].getText());
-        System.out.println("!");
-        //重新设置对应关系
-        int i;
-        for(i=0;i<blocks1.process.size();i++){
-//            System.out.println(blocks1.process.get(i).address+"K");
-            JTextField container=new JTextField(blocks1.process.get(i).size+"K, "+blocks1.process.get(i).Id);
-            container.setBounds(245,blocks1.process.get(i).address,70,blocks1.process.get(i).size);
-            container.setBackground(Color.pink);
-            FFText[i]=container;
-        }
-        System.out.println("非空闲块：");
-        for(int k=0;k<blocks1.process.size();k++){
-            System.out.println(blocks1.process.get(k).Id);
-            System.out.println(FFText[k].getText());
-        }
 
-    }
 }
